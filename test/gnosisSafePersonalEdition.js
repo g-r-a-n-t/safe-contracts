@@ -255,7 +255,7 @@ contract('GnosisSafePersonalEdition', function(accounts) {
         // Create test contract
         let source = `
         contract Test {
-            function x() pure returns (uint) {
+            function x() public pure returns (uint) {
                 return 21;
             }
         }`

@@ -86,7 +86,7 @@ let deployToken = async function(deployer) {
     let tokenSource = `
     contract TestToken {
         mapping (address => uint) public balances;
-        function TestToken() {
+        constructor() public {
             balances[msg.sender] = 10000000;
         }
         function transfer(address to, uint value) public returns (bool) {
