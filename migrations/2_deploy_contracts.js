@@ -4,6 +4,7 @@ var StateChannelModule = artifacts.require("./StateChannelModule.sol");
 var DailyLimitModule = artifacts.require("./DailyLimitModule.sol")
 var SocialRecoveryModule = artifacts.require("./SocialRecoveryModule.sol");
 var WhitelistModule = artifacts.require("./WhitelistModule.sol");
+var RecurringTransfersModule = artifacts.require("./RecurringTransfersModule.sol");
 var CreateAndAddModules = artifacts.require("./CreateAndAddModules.sol");
 var MultiSend = artifacts.require("./MultiSend.sol");
 
@@ -31,6 +32,10 @@ module.exports = function(deployer) {
     });
     deployer.deploy(WhitelistModule).then(function (module) {
         module.setup([])
+        return module
+    });
+    deployer.deploy(RecurringTransfersModule).then(function (module) {
+        module.setup()
         return module
     });
     deployer.deploy(CreateAndAddModules);
