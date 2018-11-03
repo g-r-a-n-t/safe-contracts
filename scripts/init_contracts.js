@@ -4,6 +4,7 @@ const StateChannelModule = artifacts.require("./StateChannelModule.sol");
 const DailyLimitModule = artifacts.require("./DailyLimitModule.sol")
 const SocialRecoveryModule = artifacts.require("./SocialRecoveryModule.sol");
 const WhitelistModule = artifacts.require("./WhitelistModule.sol");
+const RecurringTransfersModule = artifacts.require("./RecurringTransfersModule.sol");
 
 const notOwnedAddress = "0x0000000000000000000000000000000000000002"
 const notOwnedAddress2 = "0x0000000000000000000000000000000000000003"
@@ -12,7 +13,7 @@ const ignoreErrors = function(promise) {
     return promise.catch(function(error){
         console.log("Failed:", error.tx)
     })
-} 
+}
 
 module.exports = function(callback) {
     var network = 'main'
@@ -28,13 +29,14 @@ module.exports = function(callback) {
             processNext = true
         }
     });
-    var zos = JSON.parse(fs.readFileSync('./zos.' + network + '.json'));  
+    var zos = JSON.parse(fs.readFileSync('./zos.' + network + '.json'));
     Promise.all([
         ignoreErrors(GnosisSafe.at(zos.contracts['GnosisSafe'].address).setup([notOwnedAddress, notOwnedAddress2], 2, 0, 0)),
         ignoreErrors(StateChannelModule.at(zos.contracts['StateChannelModule'].address).setup()),
         ignoreErrors(DailyLimitModule.at(zos.contracts['DailyLimitModule'].address).setup([],[])),
         ignoreErrors(SocialRecoveryModule.at(zos.contracts['SocialRecoveryModule'].address).setup([notOwnedAddress, notOwnedAddress2], 2)),
         ignoreErrors(WhitelistModule.at(zos.contracts['WhitelistModule'].address).setup([])),
+        ignoreErrors(RecurringTransfersModule.at(zos.contracts['RecurringTransfersModule'].address).setup()),
     ])
         .then(function(values) {
             values.forEach(function(resp) {
