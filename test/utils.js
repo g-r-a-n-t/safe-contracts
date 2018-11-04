@@ -2,7 +2,7 @@ const util = require('util');
 const lightwallet = require('eth-lightwallet')
 const abi = require("ethereumjs-abi");
 const ModuleDataWrapper = web3.eth.contract([{"constant":false,"inputs":[{"name":"data","type":"bytes"}],"name":"setup","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]);
-   
+
 function createAndAddModulesData(dataArray) {
     let mw = ModuleDataWrapper.at(1)
     // Remove method id (10) and position of data in payload (64)
@@ -118,6 +118,24 @@ async function getErrorMessage(to, value, data, from) {
     return abi.rawDecode(["string"], returnBuffer.slice(4))[0];
 }
 
+async function fastForwardBlockTime(seconds) {
+    await web3.currentProvider.send({
+        jsonrpc: "2.0",
+        method: "evm_increaseTime",
+        params: [seconds], id: 0
+    })
+
+    await web3.currentProvider.send({
+        jsonrpc: "2.0",
+        method: "evm_mine",
+        params: [], id: 0
+    })
+}
+
+function currentBlockTime() {
+    return web3.eth.getBlock(web3.eth.blockNumber).timestamp
+}
+
 Object.assign(exports, {
     createAndAddModulesData,
     currentTimeNs,
@@ -129,5 +147,6 @@ Object.assign(exports, {
     signTransaction,
     assertRejects,
     estimateDataGasCosts,
-    getErrorMessage
+    getErrorMessage,
+    currentBlockTime
 })

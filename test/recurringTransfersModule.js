@@ -5,6 +5,9 @@ const ProxyFactory = artifacts.require("./ProxyFactory.sol")
 const CreateAndAddModules = artifacts.require("./libraries/CreateAndAddModules.sol")
 const GnosisSafe = artifacts.require("./GnosisSafe.sol")
 
+const SECONDS_IN_DAY = 86400
+const SECONDS_IN_MONTH = SECONDS_IN_DAY * 31
+
 contract('RecurringTransfersModule', function(accounts) {
 
     let gnosisSafe
@@ -26,7 +29,7 @@ contract('RecurringTransfersModule', function(accounts) {
         // Initialize module master copy
         recurringTransfersModuleMasterCopy.setup()
 
-        // Create Gnosis Safe and Recurring Transfer Module in one transactions
+        // Create Gnosis Safe and Recurring Transfer Module in one transaction
         let moduleData = await recurringTransfersModuleMasterCopy.contract.setup.getData()
         let proxyFactoryData = await proxyFactory.contract.createProxy.getData(recurringTransfersModuleMasterCopy.address, moduleData)
         let modulesCreationData = utils.createAndAddModulesData([proxyFactoryData])
@@ -41,10 +44,55 @@ contract('RecurringTransfersModule', function(accounts) {
         assert.equal(await recurringTransfersModule.manager.call(), gnosisSafe.address)
     })
 
-    it('test', async () => {
-        await utils.assertRejects(
-            recurringTransfersModule.isNextMonth(0),
-            "should fail"
-        );
-    });
-});
+    it('should be 100', async () => {
+        assert.equal(
+            await recurringTransfersModule.return100(), 100,
+            "should return true"
+        )
+    })
+
+    it('transfer window unit tests', async () => {
+        assert.isTrue(
+            await recurringTransfersModule.isNextMonth(0),
+            "has been a month since time 0"
+        )
+
+        assert.isTrue(
+            await recurringTransfersModule.isNextMonth(utils.currentBlockTime() - SECONDS_IN_MONTH),
+            "has been a month since current time minus one month"
+        )
+
+        assert.isFalse(
+            await recurringTransfersModule.isNextMonth(utils.currentBlockTime()),
+            "has not been a month since current time"
+        )
+    })
+
+    it('should transfer 1 eth', async () => {
+        const currentDate = new Date(utils.currentBlockTime())
+        const currentDay = currentDate.getDate() - 1
+        const currentHour = currentDate.getUTCHours()
+
+        await web3.eth.sendTransaction({from: accounts[0], to: gnosisSafe.address, value: web3.toWei(1, 'ether')})
+        const startBalance = web3.eth.getBalance(accounts[1]).toNumber()
+        console.log(startBalance)
+
+        await assert.ok(
+            recurringTransfersModule.addRecurringTransfer(
+                accounts[1], 0, 1, 0, currentDay, currentHour - 1, currentHour + 1,
+                {from: accounts[0]}
+            ),
+            "add new recurring transfer"
+        )
+
+        await assert.ok(
+            recurringTransfersModule.executeRecurringTransfer(accounts[1], {from: accounts[0]}),
+            "execute recurring transfer"
+        )
+
+        console.log(web3.eth.getBalance(gnosisSafe.address).toNumber())
+        const endBalance = web3.eth.getBalance(accounts[1]).toNumber()
+        console.log(endBalance)
+        //assert.equal(startBalance + parseInt(web3.toWei(1, "ether")), endBalance)
+    })
+})
