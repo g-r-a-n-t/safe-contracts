@@ -14,11 +14,17 @@ contract RecurringTransfersModule is Module {
     DateTime dateTime;
 
     // recurringTransfers maps the composite hash of a token and account address to a recurring transfer struct.
-    mapping (uint32 => RecurringTransfer) public recurringTransfers;
+    mapping (address => RecurringTransfer) public recurringTransfers;
 
     struct RecurringTransfer {
-        address fiat;
+        address token;
         uint256 amount;
+        address fiat;
+
+        uint8 transferDay;
+        uint8 transferHourStart;
+        uint8 transferHourEnd;
+
         uint lastTransferTime;
     }
 
@@ -29,46 +35,58 @@ contract RecurringTransfersModule is Module {
         dateTime = new DateTime();
     }
 
-    function changeRecurringTransfer(address token, address receiver, address fiat, uint256 amount)
+    function addRecurringTransfer(
+        address receiver,
+        address token,
+        uint256 amount,
+        address fiat,
+        uint8 transferDay,
+        uint8 transferHourStart,
+        uint8 transferHourEnd
+    )
         public
     {
+        require(false, "this should fail");
         require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
-        recurringTransfers[addressComposite(token, receiver)] = RecurringTransfer(fiat, amount, now);
+        recurringTransfers[receiver] = RecurringTransfer(token, amount, fiat, transferDay, transferHourStart, transferHourEnd, 0);
     }
 
-    function executeRecurringTransfer(address token, address receiver)
+    function executeRecurringTransfer(address receiver)
         public
     {
+        require(false, "this should fail");
         require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
-
-        RecurringTransfer memory recurringTransfer = recurringTransfers[addressComposite(token, receiver)];
+        RecurringTransfer memory recurringTransfer = recurringTransfers[receiver];
         require(isNextMonth(recurringTransfer.lastTransferTime), "Transfer has already been executed this month");
+        require(isInTransferWindow(recurringTransfer.transferDay, recurringTransfer.transferHourStart, recurringTransfer.transferHourEnd), "Transfer request not within window");
 
-        if (token == 0) {
+        if (recurringTransfer.token == 0) {
             require(manager.execTransactionFromModule(receiver, recurringTransfer.amount, "", Enum.Operation.Call), "Could not execute ether transfer");
         } else {
             bytes memory data = abi.encodeWithSignature("transfer(address,uint256)", receiver, recurringTransfer.amount);
-            require(manager.execTransactionFromModule(token, 0, data, Enum.Operation.Call), "Could not execute token transfer");
+            require(manager.execTransactionFromModule(recurringTransfer.token, 0, data, Enum.Operation.Call), "Could not execute token transfer");
         }
 
         recurringTransfer.lastTransferTime = now;
     }
 
-    function addressComposite(address token, address receiver)
-        public pure returns (uint32)
-    {
-        return uint32(keccak256(token, receiver));
-    }
-
-    function isNextMonth(uint lastTransferTime)
+    function isInTransferWindow(uint8 day, uint8 hourStart, uint hourEnd)
         public view returns (bool)
     {
-        if (dateTime.getYear(now) > dateTime.getYear(lastTransferTime)) {
-            return true;
-        } else if (dateTime.getMonth(now) > dateTime.getMonth(lastTransferTime)) {
-            return true;
-        }
+        return dateTime.getDay(now) == day &&
+        dateTime.getHour(now) > hourStart &&
+        dateTime.getHour(now) < hourEnd;
+    }
 
-        return false;
+    function isNextMonth(uint previousTime)
+        public view returns (bool)
+    {
+        return dateTime.getYear(now) > dateTime.getYear(previousTime) ||
+        dateTime.getMonth(now) > dateTime.getMonth(previousTime);
+
+    }
+
+    function return100() public pure returns (uint){
+        return 100;
     }
 }
