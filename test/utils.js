@@ -148,5 +148,6 @@ Object.assign(exports, {
     assertRejects,
     estimateDataGasCosts,
     getErrorMessage,
+    fastForwardBlockTime,
     currentBlockTime
 })

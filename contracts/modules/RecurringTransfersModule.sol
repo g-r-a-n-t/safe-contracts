@@ -46,7 +46,6 @@ contract RecurringTransfersModule is Module {
     )
         public
     {
-        require(false, "this should fail");
         require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
         recurringTransfers[receiver] = RecurringTransfer(token, amount, fiat, transferDay, transferHourStart, transferHourEnd, 0);
     }
@@ -54,11 +53,10 @@ contract RecurringTransfersModule is Module {
     function executeRecurringTransfer(address receiver)
         public
     {
-        require(false, "this should fail");
         require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
         RecurringTransfer memory recurringTransfer = recurringTransfers[receiver];
         require(isNextMonth(recurringTransfer.lastTransferTime), "Transfer has already been executed this month");
-        require(isInTransferWindow(recurringTransfer.transferDay, recurringTransfer.transferHourStart, recurringTransfer.transferHourEnd), "Transfer request not within window");
+        //require(isInTransferWindow(recurringTransfer.transferDay, recurringTransfer.transferHourStart, recurringTransfer.transferHourEnd), "Transfer request not within window");
 
         if (recurringTransfer.token == 0) {
             require(manager.execTransactionFromModule(receiver, recurringTransfer.amount, "", Enum.Operation.Call), "Could not execute ether transfer");
@@ -67,7 +65,7 @@ contract RecurringTransfersModule is Module {
             require(manager.execTransactionFromModule(recurringTransfer.token, 0, data, Enum.Operation.Call), "Could not execute token transfer");
         }
 
-        recurringTransfer.lastTransferTime = now;
+        recurringTransfers[receiver].lastTransferTime = now;
     }
 
     function isInTransferWindow(uint8 day, uint8 hourStart, uint hourEnd)
@@ -83,10 +81,6 @@ contract RecurringTransfersModule is Module {
     {
         return dateTime.getYear(now) > dateTime.getYear(previousTime) ||
         dateTime.getMonth(now) > dateTime.getMonth(previousTime);
-
     }
-
-    function return100() public pure returns (uint){
-        return 100;
-    }
+    
 }

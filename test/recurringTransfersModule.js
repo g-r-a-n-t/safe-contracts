@@ -44,13 +44,6 @@ contract('RecurringTransfersModule', function(accounts) {
         assert.equal(await recurringTransfersModule.manager.call(), gnosisSafe.address)
     })
 
-    it('should be 100', async () => {
-        assert.equal(
-            await recurringTransfersModule.return100(), 100,
-            "should return true"
-        )
-    })
-
     it('transfer window unit tests', async () => {
         assert.isTrue(
             await recurringTransfersModule.isNextMonth(0),
@@ -69,30 +62,111 @@ contract('RecurringTransfersModule', function(accounts) {
     })
 
     it('should transfer 1 eth', async () => {
-        const currentDate = new Date(utils.currentBlockTime())
+        const currentDate = new Date(utils.currentBlockTime() * 1000)
         const currentDay = currentDate.getDate() - 1
         const currentHour = currentDate.getUTCHours()
 
-        await web3.eth.sendTransaction({from: accounts[0], to: gnosisSafe.address, value: web3.toWei(1, 'ether')})
-        const startBalance = web3.eth.getBalance(accounts[1]).toNumber()
-        console.log(startBalance)
+        const owner = accounts[0]
+        const receiver = accounts[1]
+        const transferAmount = parseInt(web3.toWei(1, 'ether'))
 
-        await assert.ok(
-            recurringTransfersModule.addRecurringTransfer(
-                accounts[1], 0, 1, 0, currentDay, currentHour - 1, currentHour + 1,
-                {from: accounts[0]}
-            ),
-            "add new recurring transfer"
+        await web3.eth.sendTransaction({from: owner, to: gnosisSafe.address, value: transferAmount * 2})
+        const safeStartBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
+        const receiverStartBalance = web3.eth.getBalance(receiver).toNumber()
+
+        utils.logGasUsage(
+            "add new recurring transfer",
+            await recurringTransfersModule.addRecurringTransfer(
+                receiver, 0, transferAmount, 0, currentDay, currentHour - 1, currentHour + 1, {from: owner}
+            )
         )
 
-        await assert.ok(
-            recurringTransfersModule.executeRecurringTransfer(accounts[1], {from: accounts[0]}),
-            "execute recurring transfer"
+        utils.logGasUsage(
+            "execute 1st recurring transfer",
+            await recurringTransfersModule.executeRecurringTransfer(receiver, {from: owner})
         )
 
-        console.log(web3.eth.getBalance(gnosisSafe.address).toNumber())
-        const endBalance = web3.eth.getBalance(accounts[1]).toNumber()
-        console.log(endBalance)
-        //assert.equal(startBalance + parseInt(web3.toWei(1, "ether")), endBalance)
+        const safeEndBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
+        const receiverEndBalance = web3.eth.getBalance(receiver).toNumber()
+
+        assert.equal(safeStartBalance - transferAmount, safeEndBalance)
+        assert.equal(receiverStartBalance + transferAmount, receiverEndBalance)
+    })
+
+    it('should fail when transfering twice in one month', async () => {
+        const currentDate = new Date(utils.currentBlockTime() * 1000)
+        const currentDay = currentDate.getDate() - 1
+        const currentHour = currentDate.getUTCHours()
+
+        const owner = accounts[0]
+        const receiver = accounts[1]
+        const transferAmount = parseInt(web3.toWei(1, 'ether'))
+
+        await web3.eth.sendTransaction({from: owner, to: gnosisSafe.address, value: transferAmount * 2})
+        const safeStartBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
+        const receiverStartBalance = web3.eth.getBalance(receiver).toNumber()
+
+        utils.logGasUsage(
+            "add new recurring transfer",
+            await recurringTransfersModule.addRecurringTransfer(
+                receiver, 0, transferAmount, 0, currentDay, currentHour - 1, currentHour + 1, {from: owner}
+            )
+        )
+
+        utils.logGasUsage(
+            "execute 1st recurring transfer",
+            await recurringTransfersModule.executeRecurringTransfer(receiver, {from: owner})
+        )
+
+        await utils.assertRejects(
+            recurringTransfersModule.executeRecurringTransfer(receiver, {from: owner}),
+            "executing 2nd recurring transfer fails"
+        )
+
+        const safeEndBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
+        const receiverEndBalance = web3.eth.getBalance(receiver).toNumber()
+
+        assert.equal(safeStartBalance - transferAmount, safeEndBalance)
+        assert.equal(receiverStartBalance + transferAmount, receiverEndBalance)
+    })
+
+
+    it('should transfer when waiting one month', async () => {
+        const currentDate = new Date(utils.currentBlockTime() * 1000)
+        const currentDay = currentDate.getDate() - 1
+        const currentHour = currentDate.getUTCHours()
+
+        const owner = accounts[0]
+        const receiver = accounts[1]
+        const transferAmount = parseInt(web3.toWei(1, 'ether'))
+
+        await web3.eth.sendTransaction({from: owner, to: gnosisSafe.address, value: transferAmount * 2})
+        const safeStartBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
+        const receiverStartBalance = web3.eth.getBalance(receiver).toNumber()
+
+        utils.logGasUsage(
+            "add new recurring transfer",
+            await recurringTransfersModule.addRecurringTransfer(
+                receiver, 0, transferAmount, 0, currentDay, currentHour - 1, currentHour + 1, {from: owner}
+            )
+        )
+
+        utils.logGasUsage(
+            "execute 1st recurring transfer",
+            await recurringTransfersModule.executeRecurringTransfer(receiver, {from: owner})
+        )
+
+        await utils.fastForwardBlockTime(SECONDS_IN_MONTH)
+
+        utils.logGasUsage(
+            "executing 2nd recurring transfer fails",
+            await recurringTransfersModule.executeRecurringTransfer(receiver, {from: owner})
+        )
+
+        const safeEndBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
+        const receiverEndBalance = web3.eth.getBalance(receiver).toNumber()
+
+        assert.equal(safeStartBalance - transferAmount * 2, safeEndBalance)
+        assert.equal(receiverStartBalance + transferAmount * 2, receiverEndBalance)
     })
 })
