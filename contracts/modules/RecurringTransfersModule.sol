@@ -56,7 +56,7 @@ contract RecurringTransfersModule is Module {
         require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
         RecurringTransfer memory recurringTransfer = recurringTransfers[receiver];
         require(isNextMonth(recurringTransfer.lastTransferTime), "Transfer has already been executed this month");
-        //require(isInTransferWindow(recurringTransfer.transferDay, recurringTransfer.transferHourStart, recurringTransfer.transferHourEnd), "Transfer request not within window");
+        require(isOnDayAndBetweenHours(recurringTransfer.transferDay, recurringTransfer.transferHourStart, recurringTransfer.transferHourEnd), "Transfer request not within window");
 
         if (recurringTransfer.token == 0) {
             require(manager.execTransactionFromModule(receiver, recurringTransfer.amount, "", Enum.Operation.Call), "Could not execute ether transfer");
@@ -68,7 +68,7 @@ contract RecurringTransfersModule is Module {
         recurringTransfers[receiver].lastTransferTime = now;
     }
 
-    function isInTransferWindow(uint8 day, uint8 hourStart, uint hourEnd)
+    function isOnDayAndBetweenHours(uint8 day, uint8 hourStart, uint hourEnd)
         public view returns (bool)
     {
         return dateTime.getDay(now) == day &&
@@ -82,5 +82,5 @@ contract RecurringTransfersModule is Module {
         return dateTime.getYear(now) > dateTime.getYear(previousTime) ||
         dateTime.getMonth(now) > dateTime.getMonth(previousTime);
     }
-    
+
 }

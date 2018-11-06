@@ -5,13 +5,26 @@ const ProxyFactory = artifacts.require("./ProxyFactory.sol")
 const CreateAndAddModules = artifacts.require("./libraries/CreateAndAddModules.sol")
 const GnosisSafe = artifacts.require("./GnosisSafe.sol")
 
-const SECONDS_IN_DAY = 86400
-const SECONDS_IN_MONTH = SECONDS_IN_DAY * 31
-
 contract('RecurringTransfersModule', function(accounts) {
-
     let gnosisSafe
     let recurringTransfersModule
+
+    const currentDate = new Date(utils.currentBlockTime() * 1000)
+    const currentYear = currentDate.getUTCFullYear()
+    const currentMonth = currentDate.getUTCMonth()
+    const currentDay = currentDate.getUTCDate()
+    const currentHour = currentDate.getUTCHours()
+
+    var thisTimeNextMonth
+    if(currentMonth == 11) {
+        thisTimeNextMonth = Date.UTC(currentYear + 1, 0, currentDay, currentHour, 0, 0) / 1000
+    } else {
+        thisTimeNextMonth = Date.UTC(currentYear, currentMonth + 1, currentDay, currentHour, 0, 0) / 1000
+    }
+
+    const owner = accounts[0]
+    const receiver = accounts[1]
+    const transferAmount = parseInt(web3.toWei(1, 'ether'))
 
     beforeEach(async function() {
         // Create lightwallet
@@ -50,26 +63,30 @@ contract('RecurringTransfersModule', function(accounts) {
             "has been a month since time 0"
         )
 
+        /*
         assert.isTrue(
             await recurringTransfersModule.isNextMonth(utils.currentBlockTime() - SECONDS_IN_MONTH),
             "has been a month since current time minus one month"
         )
+        */
 
         assert.isFalse(
             await recurringTransfersModule.isNextMonth(utils.currentBlockTime()),
             "has not been a month since current time"
         )
+
+        assert.isTrue(
+            await recurringTransfersModule.isOnDayAndBetweenHours(currentDay, currentHour - 1, currentHour + 1),
+            "is on same day and between hours"
+        )
+
+        assert.isFalse(
+            await recurringTransfersModule.isOnDayAndBetweenHours(currentDay, currentHour + 1, currentHour + 2),
+            "is not on same day and between different hours"
+        )
     })
 
     it('should transfer 1 eth', async () => {
-        const currentDate = new Date(utils.currentBlockTime() * 1000)
-        const currentDay = currentDate.getDate() - 1
-        const currentHour = currentDate.getUTCHours()
-
-        const owner = accounts[0]
-        const receiver = accounts[1]
-        const transferAmount = parseInt(web3.toWei(1, 'ether'))
-
         await web3.eth.sendTransaction({from: owner, to: gnosisSafe.address, value: transferAmount * 2})
         const safeStartBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
         const receiverStartBalance = web3.eth.getBalance(receiver).toNumber()
@@ -93,15 +110,7 @@ contract('RecurringTransfersModule', function(accounts) {
         assert.equal(receiverStartBalance + transferAmount, receiverEndBalance)
     })
 
-    it('should fail when transfering twice in one month', async () => {
-        const currentDate = new Date(utils.currentBlockTime() * 1000)
-        const currentDay = currentDate.getDate() - 1
-        const currentHour = currentDate.getUTCHours()
-
-        const owner = accounts[0]
-        const receiver = accounts[1]
-        const transferAmount = parseInt(web3.toWei(1, 'ether'))
-
+    it('should transfer 1 eth then fail on second transfer', async () => {
         await web3.eth.sendTransaction({from: owner, to: gnosisSafe.address, value: transferAmount * 2})
         const safeStartBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
         const receiverStartBalance = web3.eth.getBalance(receiver).toNumber()
@@ -131,15 +140,7 @@ contract('RecurringTransfersModule', function(accounts) {
     })
 
 
-    it('should transfer when waiting one month', async () => {
-        const currentDate = new Date(utils.currentBlockTime() * 1000)
-        const currentDay = currentDate.getDate() - 1
-        const currentHour = currentDate.getUTCHours()
-
-        const owner = accounts[0]
-        const receiver = accounts[1]
-        const transferAmount = parseInt(web3.toWei(1, 'ether'))
-
+    it('should transfer 1 eth then transfer another 1 eth the next month', async () => {
         await web3.eth.sendTransaction({from: owner, to: gnosisSafe.address, value: transferAmount * 2})
         const safeStartBalance = web3.eth.getBalance(gnosisSafe.address).toNumber()
         const receiverStartBalance = web3.eth.getBalance(receiver).toNumber()
@@ -156,7 +157,7 @@ contract('RecurringTransfersModule', function(accounts) {
             await recurringTransfersModule.executeRecurringTransfer(receiver, {from: owner})
         )
 
-        await utils.fastForwardBlockTime(SECONDS_IN_MONTH)
+        await utils.fastForwardBlockTime(thisTimeNextMonth - utils.currentBlockTime())
 
         utils.logGasUsage(
             "executing 2nd recurring transfer fails",
