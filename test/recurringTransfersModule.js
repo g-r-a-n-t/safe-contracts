@@ -4,7 +4,7 @@ const RecurringTransfersModule = artifacts.require("./modules/RecurringTransfers
 const ProxyFactory = artifacts.require("./ProxyFactory.sol")
 const CreateAndAddModules = artifacts.require("./libraries/CreateAndAddModules.sol")
 const GnosisSafe = artifacts.require("./GnosisSafe.sol")
-const DutchExchange = artifacts.require("@gnosis.pm/dx-contracts/contracts/DutchExchange.sol")
+const DutchExchangeProxy = artifacts.require("DutchExchangeProxy")
 
 contract('RecurringTransfersModule', function(accounts) {
     let gnosisSafe
@@ -35,7 +35,8 @@ contract('RecurringTransfersModule', function(accounts) {
 
         // create dutch dutchExchange
         //dutchExchange = await DutchExchange.new()
-        dxAddress = accounts[]
+        dxProxy = await DutchExchangeProxy.deployed()
+        dxAddress = dxProxy.address
 
         // Create Master Copies
         let proxyFactory = await ProxyFactory.new()
