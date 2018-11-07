@@ -6,18 +6,20 @@ const CreateAndAddModules = artifacts.require("./libraries/CreateAndAddModules.s
 const GnosisSafe = artifacts.require("./GnosisSafe.sol")
 const DutchExchangeProxy = artifacts.require("DutchExchangeProxy")
 
+const SECONDS_IN_DAY = 60 * 60 * 24
+
 contract('RecurringTransfersModule', function(accounts) {
     let gnosisSafe
     let recurringTransfersModule
     let dutchExchange
     let dxAddress
 
-    const currentDate = new Date(utils.currentBlockTime() * 1000)
+    const currentBlockTime = utils.currentBlockTime()
+    const currentDate = new Date(currentBlockTime * 1000)
     const currentYear = currentDate.getUTCFullYear()
     const currentMonth = currentDate.getUTCMonth()
     const currentDay = currentDate.getUTCDate()
     const currentHour = currentDate.getUTCHours()
-
     var thisTimeNextMonth
     if(currentMonth == 11) {
         thisTimeNextMonth = Date.UTC(currentYear + 1, 0, currentDay, currentHour, 0, 0) / 1000
@@ -71,15 +73,13 @@ contract('RecurringTransfersModule', function(accounts) {
             "has been a month since time 0"
         )
 
-        /*
         assert.isTrue(
-            await recurringTransfersModule.isNextMonth(utils.currentBlockTime() - SECONDS_IN_MONTH),
+            await recurringTransfersModule.isNextMonth(currentBlockTime - (currentDay + 5) * SECONDS_IN_DAY),
             "has been a month since current time minus one month"
         )
-        */
 
         assert.isFalse(
-            await recurringTransfersModule.isNextMonth(utils.currentBlockTime()),
+            await recurringTransfersModule.isNextMonth(currentBlockTime),
             "has not been a month since current time"
         )
 
@@ -165,7 +165,7 @@ contract('RecurringTransfersModule', function(accounts) {
             await recurringTransfersModule.executeRecurringTransfer(receiver, {from: owner})
         )
 
-        await utils.fastForwardBlockTime(thisTimeNextMonth - utils.currentBlockTime())
+        await utils.fastForwardBlockTime(thisTimeNextMonth - currentBlockTime)
 
         utils.logGasUsage(
             "executing 2nd recurring transfer fails",

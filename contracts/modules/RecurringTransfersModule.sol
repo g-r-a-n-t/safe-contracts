@@ -14,7 +14,7 @@ contract RecurringTransfersModule is Module {
     string public constant NAME = "Recurring Transfers Module";
     string public constant VERSION = "0.0.2";
 
-    DateTime dateTime;
+    DateTime public dateTime;
     DutchExchange public dutchExchange;
 
     // recurringTransfers maps the composite hash of a token and account address to a recurring transfer struct.
