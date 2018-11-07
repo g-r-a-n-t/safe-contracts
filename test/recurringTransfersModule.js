@@ -4,10 +4,13 @@ const RecurringTransfersModule = artifacts.require("./modules/RecurringTransfers
 const ProxyFactory = artifacts.require("./ProxyFactory.sol")
 const CreateAndAddModules = artifacts.require("./libraries/CreateAndAddModules.sol")
 const GnosisSafe = artifacts.require("./GnosisSafe.sol")
+const DutchExchange = artifacts.require("@gnosis.pm/dx-contracts/contracts/DutchExchange.sol")
 
 contract('RecurringTransfersModule', function(accounts) {
     let gnosisSafe
     let recurringTransfersModule
+    let dutchExchange
+    let dxAddress
 
     const currentDate = new Date(utils.currentBlockTime() * 1000)
     const currentYear = currentDate.getUTCFullYear()
@@ -30,6 +33,10 @@ contract('RecurringTransfersModule', function(accounts) {
         // Create lightwallet
         lw = await utils.createLightwallet()
 
+        // create dutch dutchExchange
+        //dutchExchange = await DutchExchange.new()
+        dxAddress = accounts[]
+
         // Create Master Copies
         let proxyFactory = await ProxyFactory.new()
         let createAndAddModules = await CreateAndAddModules.new()
@@ -40,14 +47,14 @@ contract('RecurringTransfersModule', function(accounts) {
         let recurringTransfersModuleMasterCopy = await RecurringTransfersModule.new()
 
         // Initialize module master copy
-        recurringTransfersModuleMasterCopy.setup()
+        recurringTransfersModuleMasterCopy.setup(dxAddress)
 
         // Create Gnosis Safe and Recurring Transfer Module in one transaction
-        let moduleData = await recurringTransfersModuleMasterCopy.contract.setup.getData()
+        let moduleData = await recurringTransfersModuleMasterCopy.contract.setup.getData(dxAddress)
         let proxyFactoryData = await proxyFactory.contract.createProxy.getData(recurringTransfersModuleMasterCopy.address, moduleData)
         let modulesCreationData = utils.createAndAddModulesData([proxyFactoryData])
         let createAndAddModulesData = createAndAddModules.contract.createAndAddModules.getData(proxyFactory.address, modulesCreationData)
-        let gnosisSafeData = await gnosisSafeMasterCopy.contract.setup.getData([lw.accounts[0], lw.accounts[1], accounts[0]], 2, createAndAddModules.address, createAndAddModulesData)
+        let gnosisSafeData = await gnosisSafeMasterCopy.contract.setup.getData([lw.accounts[0], lw.accounts[1], owner], 2, createAndAddModules.address, createAndAddModulesData)
         gnosisSafe = utils.getParamFromTxEvent(
             await proxyFactory.createProxy(gnosisSafeMasterCopy.address, gnosisSafeData),
             'ProxyCreation', 'proxy', proxyFactory.address, GnosisSafe, 'create Gnosis Safe and Recurring Transfer Module',
@@ -169,5 +176,10 @@ contract('RecurringTransfersModule', function(accounts) {
 
         assert.equal(safeStartBalance - transferAmount * 2, safeEndBalance)
         assert.equal(receiverStartBalance + transferAmount * 2, receiverEndBalance)
+    })
+
+    it('price bullshit', async () => {
+        console.log(dxAddress);
+        console.log(await recurringTransfersModule.getUSDETHPrice());
     })
 })

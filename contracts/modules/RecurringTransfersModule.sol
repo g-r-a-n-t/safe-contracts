@@ -5,6 +5,9 @@ import "../base/OwnerManager.sol";
 import "../common/DateTime.sol";
 import "../common/Enum.sol";
 
+import "@gnosis.pm/dx-contracts/contracts/DutchExchange.sol";
+import "@gnosis.pm/dx-contracts/contracts/Oracle/PriceOracleInterface.sol";
+
 /// @title Recurring Transfer Module - Allows an owner...
 /// @author Grant Wuerker - <gwuerker@gmail.com>
 contract RecurringTransfersModule is Module {
@@ -12,6 +15,7 @@ contract RecurringTransfersModule is Module {
     string public constant VERSION = "0.0.2";
 
     DateTime dateTime;
+    DutchExchange public dutchExchange;
 
     // recurringTransfers maps the composite hash of a token and account address to a recurring transfer struct.
     mapping (address => RecurringTransfer) public recurringTransfers;
@@ -28,11 +32,13 @@ contract RecurringTransfersModule is Module {
         uint lastTransferTime;
     }
 
-    function setup()
+    function setup(address _dutchExchange)
         public
     {
-        setManager();
+        require(address(_dutchExchange) != address(0));
+        dutchExchange = DutchExchange(_dutchExchange);
         dateTime = new DateTime();
+        setManager();
     }
 
     function addRecurringTransfer(
@@ -83,4 +89,10 @@ contract RecurringTransfersModule is Module {
         dateTime.getMonth(now) > dateTime.getMonth(previousTime);
     }
 
+    function getUSDETHPrice()
+        public view returns (uint256)
+    {
+        PriceOracleInterface priceOracle = PriceOracleInterface(dutchExchange.ethUSDOracle());
+        return priceOracle.getUSDETHPrice();
+    }
 }
