@@ -102,7 +102,7 @@ contract('RecurringTransfersModule', function(accounts) {
         utils.logGasUsage(
             "add new recurring transfer",
             await recurringTransfersModule.addRecurringTransfer(
-                receiver, 0, transferAmount, 0, currentDay, currentHour - 1, currentHour + 1, {from: owner}
+                receiver, 0, 0, 0, transferAmount, currentDay, currentHour - 1, currentHour + 1, {from: owner}
             )
         )
 
@@ -126,7 +126,7 @@ contract('RecurringTransfersModule', function(accounts) {
         utils.logGasUsage(
             "add new recurring transfer",
             await recurringTransfersModule.addRecurringTransfer(
-                receiver, 0, transferAmount, 0, currentDay, currentHour - 1, currentHour + 1, {from: owner}
+                receiver, 0, 0, 0, transferAmount, currentDay, currentHour - 1, currentHour + 1, {from: owner}
             )
         )
 
@@ -156,7 +156,7 @@ contract('RecurringTransfersModule', function(accounts) {
         utils.logGasUsage(
             "add new recurring transfer",
             await recurringTransfersModule.addRecurringTransfer(
-                receiver, 0, transferAmount, 0, currentDay, currentHour - 1, currentHour + 1, {from: owner}
+                receiver, 0, 0, 0, transferAmount, currentDay, currentHour - 1, currentHour + 1, {from: owner}
             )
         )
 
@@ -181,6 +181,6 @@ contract('RecurringTransfersModule', function(accounts) {
 
     it('price bullshit', async () => {
         console.log(dxAddress);
-        console.log(await recurringTransfersModule.getUSDETHPrice());
+        console.log(await recurringTransfersModule.getUSDETHPrice(accounts[3]));
     })
 })

@@ -8,7 +8,7 @@ import "../common/Enum.sol";
 import "@gnosis.pm/dx-contracts/contracts/DutchExchange.sol";
 import "@gnosis.pm/dx-contracts/contracts/Oracle/PriceOracleInterface.sol";
 
-/// @title Recurring Transfer Module - Allows an owner...
+/// @title Recurring Transfer Module - Allows an owner to create transfers that can be executed by an owner or delegate on a recurring basis
 /// @author Grant Wuerker - <gwuerker@gmail.com>
 contract RecurringTransfersModule is Module {
     string public constant NAME = "Recurring Transfers Module";
@@ -21,9 +21,11 @@ contract RecurringTransfersModule is Module {
     mapping (address => RecurringTransfer) public recurringTransfers;
 
     struct RecurringTransfer {
+        address delegate;
+
         address token;
+        address rate;
         uint256 amount;
-        address fiat;
 
         uint8 transferDay;
         uint8 transferHourStart;
@@ -32,6 +34,8 @@ contract RecurringTransfersModule is Module {
         uint lastTransferTime;
     }
 
+    /// @dev Setup function sets initial storage of contract.
+    /// @param _dutchExchange Address of the DutchExchange contract.
     function setup(address _dutchExchange)
         public
     {
@@ -41,11 +45,21 @@ contract RecurringTransfersModule is Module {
         setManager();
     }
 
+    /// @dev Adds a recurring transfer struct to this module.
+    /// @param receiver The address that will receive tokens.
+    /// @param delegate Additional address that can execute the recurring transfer (0 for none).
+    /// @param token Address of the token that should be transfered (0 for Ether).
+    /// @param rate Address of a token used to calculate the amount transfered (0 for none). For example, set this to DAI for consistent payment amounts in USD.
+    /// @param amount The amount of tokens transfered. This will vary upon execution if a rate is provided.
+    /// @param transferDay Day of the month when the recurring transfer can be executed (1-31).
+    /// @param transferHourStart Time of the day when transfer can be executed (0-22).
+    /// @param transferHourEnd Time of the day when transfer can no longer be executed (1-23).
     function addRecurringTransfer(
         address receiver,
+        address delegate,
         address token,
+        address rate,
         uint256 amount,
-        address fiat,
         uint8 transferDay,
         uint8 transferHourStart,
         uint8 transferHourEnd
@@ -53,16 +67,21 @@ contract RecurringTransfersModule is Module {
         public
     {
         require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
-        recurringTransfers[receiver] = RecurringTransfer(token, amount, fiat, transferDay, transferHourStart, transferHourEnd, 0);
+        require(amount != 0, "amount must be greater than 0");
+        require(transferDay < 32, "transferDay must be less than 32");
+        require(transferHourStart < transferHourEnd, "transferHourStart must be less than transferHourEnd");
+        recurringTransfers[receiver] = RecurringTransfer(delegate, token, rate, amount, transferDay, transferHourStart, transferHourEnd, 0);
     }
 
+    /// @dev Executes a recurring transfer.
+    /// @param receiver The address that will receive tokens.
     function executeRecurringTransfer(address receiver)
         public
     {
-        require(OwnerManager(manager).isOwner(msg.sender), "Method can only be called by an owner");
         RecurringTransfer memory recurringTransfer = recurringTransfers[receiver];
+        require(OwnerManager(manager).isOwner(msg.sender) || msg.sender == recurringTransfer.delegate, "Method can only be called by an owner or the external approver");
         require(isNextMonth(recurringTransfer.lastTransferTime), "Transfer has already been executed this month");
-        require(isOnDayAndBetweenHours(recurringTransfer.transferDay, recurringTransfer.transferHourStart, recurringTransfer.transferHourEnd), "Transfer request not within window");
+        require(isOnDayAndBetweenHours(recurringTransfer.transferDay, recurringTransfer.transferHourStart, recurringTransfer.transferHourEnd), "Transfer request not within valid timeframe");
 
         if (recurringTransfer.token == 0) {
             require(manager.execTransactionFromModule(receiver, recurringTransfer.amount, "", Enum.Operation.Call), "Could not execute ether transfer");
@@ -89,10 +108,9 @@ contract RecurringTransfersModule is Module {
         dateTime.getMonth(now) > dateTime.getMonth(previousTime);
     }
 
-    function getUSDETHPrice()
-        public view returns (uint256)
+    function getUSDETHPrice(address token)
+        public view returns (uint, uint)
     {
-        PriceOracleInterface priceOracle = PriceOracleInterface(dutchExchange.ethUSDOracle());
-        return priceOracle.getUSDETHPrice();
+        return dutchExchange.getPriceOfTokenInLastAuction(token);
     }
 }
